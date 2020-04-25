@@ -12,7 +12,7 @@ pool:
 variables:
   buildConfiguration: 'Release'
   nugetFeedName: 'headleysj'
-  nugetFeedSource: 'https://pkgs.dev.azure.com/headleysj/_packaging/headleysj/nuget/v3/index.json',
+  nugetFeedSource: 'https://pkgs.dev.azure.com/headleysj/_packaging/headleysj/nuget/v3/index.json'
   nugetFeedUser: 'AzureNugetUser'
 
 jobs:
