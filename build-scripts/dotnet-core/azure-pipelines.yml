@@ -47,3 +47,10 @@ jobs:
       filePath: 'nuget-publish.ps1'
       arguments: '-NugetFeedName $(nugetFeedName) -NugetFeedSource $(nugetFeedSource) -NugetFeedUser $(nugetFeedUser) -NugetAccessToken $(System.AccessToken)'
       failOnStdErr: true
+
+  - task: PowerShell@2
+    displayName: 'Update build display number'
+    inputs:
+      targetType: 'filepath'
+      filePath: 'build-bootstrapper.ps1'
+      arguments: '-Actions "set-build-display-number" -BuildId $(Build.BuildNumber) -BranchName $(Build.SourceBranchName)'
