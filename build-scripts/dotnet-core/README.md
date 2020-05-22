@@ -1,19 +1,113 @@
 # .NET Core
-This directory contains the necessary scripts to setup CI for a .NET Core project to build and publish packages to the organization nuget feed.
+This directory contains the necessary steps to setup automatic build & publishing of your build artifacts, including coverage reports, etc.
 
 # Steps
-1. Create a `tools` directory at the root-level of your repository, and paste the [nuget.exe](nuget.exe) file in the tools directory of your repository.
-2. Create a `build` directory at the root-level of your repository. In this directory you will create the desired `.nuspec` files that you need to pack your project.
-3. Copy and paste the following files into the root of your repository:
-    * [azure-pipelines.yml](azure-pipelines.yml)
-    * [build-bootstrapper.ps1](build-bootstrapper.ps1)
-    * [build.ps1](build.ps1)
-    * [unit-test.ps1](unit-test.ps1) (if you intend to write unit tests for your project)
-    * [version.ps1](version.ps1)
+1. Create a reposity and initialize it with a `azure-pipelines.yml` file at the root-level of your repository.
+2. Browse to the root of your build pipeline and select `Edit`.
+3. Select `Variables`.
+4. Add the following three variables:
+    1. `MajorVersion` = 1
+    2. `MinorVersion` = 0
+    3. `Patchversion` = 0
+5. Add/modify your `azure-pipelines.yml` with the following:
+    ``` YAML
+    name: $(MajorVersion).$(MinorVersion).$(PatchVersion).$(Rev:r)
 
-You can now test your build locally by running the [build-bootstrapper.ps1](build-bootstrapper.ps1) with the following PowerShell:
-``` PowerShell
-.\build-bootstrapper.ps1 -Actions "build" # To only test the build
-.\build-bootstrapper.ps1 -Actions "unit-test" # To only test the unit testing
-.\build-bootstrapper.ps1 # To test build & unit test
-```
+    trigger:
+    branches:
+        include:
+        - '*'
+    paths:
+        include:
+        - '*'
+
+    pool:
+    vmImage: 'windows-2019'
+
+    variables:
+    BuildConfiguration: 'Release'
+
+    jobs:
+    - job: 'Build'
+    steps:
+    - checkout: self
+        fetchDepth: 1
+        clean: true
+
+    - task: PowerShell@2
+        displayName: 'Set build number'
+        inputs:
+        targetType: 'inline'
+        script: |
+            $branchName = "$(Build.SourceBranchName)";
+            $buildVersion = "$(Build.BuildNumber)";
+            $nugetPkgVersion = $buildVersion;
+            If (-not([string]::IsNullOrWhiteSpace($branchName)) -and ($branchName -ne "master")) {
+                $nugetPkgVersion = "$nugetPkgVersion-$branchName";
+            }
+            Write-Host "Package version: $nugetPkgVersion";
+            Write-Host "##vso[build.updateBuildNumber]$nugetPkgVersion";
+
+    - task: DotNetCoreCLI@2
+        displayName: 'dotnet restore'
+        inputs:
+        command: 'restore'
+        projects: './src'
+        feedsToUse: 'select'
+        vstsFeed: '404449e0-6d24-4a4e-bc3e-4634d3f54a5a'
+
+    - task: DotNetCoreCLI@2
+        displayName: 'dotnet build'
+        inputs:
+        command: 'build'
+        projects: './src'
+        arguments: '--no-restore --configuration $(BuildConfiguration) -p:Version=$(Build.BuildNumber)'
+
+    - task: NuGetCommand@2
+        displayName: 'nuget pack'
+        inputs:
+        command: 'pack'
+        packagesToPack: '**/*.nuspec'
+        configuration: '$(buildConfiguration)'
+        versioningScheme: 'byEnvVar'
+        versionEnvVar: 'Build.BuildNumber'
+        buildProperties: 'version="$(Build.BuildNumber)"'
+
+    - task: DotNetCoreCLI@2
+        displayName: 'dotnet test'
+        inputs:
+        command: 'test'
+        projects: './src'
+        arguments: '--no-restore --configuration $(BuildConfiguration) /p:CollectCoverage=true /p:CoverletOutputFormat="cobertura%2cjson" /p:CoverletOutput="$(Build.SourcesDirectory)/artifacts/unit-tests/" /p:MergeWith="$(Build.SourcesDirectory)/artifacts/unit-tests/coverage.json"'
+
+    - task: DotNetCoreCLI@2
+        displayName: 'dotnet nuget push'
+        inputs:
+        command: 'push'
+        packagesToPush: '$(Build.ArtifactStagingDirectory)/*.nupkg'
+        nuGetFeedType: 'internal'
+        publishVstsFeed: '404449e0-6d24-4a4e-bc3e-4634d3f54a5a'
+
+    - task: PublishBuildArtifacts@1
+        displayName: 'Publish build artifacts'
+        inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
+
+    - task: PublishCodeCoverageResults@1
+        displayName: 'Publish code coverage results'
+        inputs:
+        codeCoverageTool: Cobertura
+        summaryFileLocation: '$(Build.SourcesDirectory)/artifacts/unit-tests/coverage.cobertura.xml'
+
+    - task: PublishTestResults@2
+        displayName: 'Publish test results'
+        inputs:
+        testResultsFormat: 'VSTest'
+        testResultsFiles: '**/**.trx'
+        searchFolder: '$(Agent.TempDirectory)'
+        mergeTestResults: true
+        failTaskOnFailedTests: true
+        buildConfiguration: '$(BuildConfiguration)'
+    ```
