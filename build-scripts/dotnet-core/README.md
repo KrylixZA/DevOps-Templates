@@ -14,12 +14,12 @@ This directory contains the necessary steps to setup automatic build & publishin
     name: $(MajorVersion).$(MinorVersion).$(PatchVersion).$(Rev:r)
 
     trigger:
-    branches:
-      include:
-      - '*'
-    paths:
-      include:
-      - '*'
+      branches:
+        include:
+        - '*'
+      paths:
+        include:
+        - '*'
 
     pool:
       vmImage: 'windows-2019'
@@ -31,83 +31,83 @@ This directory contains the necessary steps to setup automatic build & publishin
     - job: 'Build'
       steps:
       - checkout: self
-          fetchDepth: 1
-          clean: true
+        fetchDepth: 1
+        clean: true
 
       - task: PowerShell@2
-          displayName: 'Set build number'
-          inputs:
+        displayName: 'Set build number'
+        inputs:
           targetType: 'inline'
           script: |
-              $branchName = "$(Build.SourceBranchName)";
-              $buildVersion = "$(Build.BuildNumber)";
-              $nugetPkgVersion = $buildVersion;
-              If (-not([string]::IsNullOrWhiteSpace($branchName)) -and ($branchName -ne "master")) {
-                  $nugetPkgVersion = "$nugetPkgVersion-$branchName";
-              }
-              Write-Host "Package version: $nugetPkgVersion";
-              Write-Host "##vso[build.updateBuildNumber]$nugetPkgVersion";
+            $branchName = "$(Build.SourceBranchName)";
+            $buildVersion = "$(Build.BuildNumber)";
+            $nugetPkgVersion = $buildVersion;
+            If (-not([string]::IsNullOrWhiteSpace($branchName)) -and ($branchName -ne "master")) {
+                $nugetPkgVersion = "$nugetPkgVersion-$branchName";
+            }
+            Write-Host "Package version: $nugetPkgVersion";
+            Write-Host "##vso[build.updateBuildNumber]$nugetPkgVersion";
 
       - task: DotNetCoreCLI@2
-          displayName: 'dotnet restore'
-          inputs:
-            command: 'restore'
-            projects: './src'
-            feedsToUse: 'select'
-            vstsFeed: '404449e0-6d24-4a4e-bc3e-4634d3f54a5a'
+        displayName: 'dotnet restore'
+        inputs:
+          command: 'restore'
+          projects: './src'
+          feedsToUse: 'select'
+          vstsFeed: '404449e0-6d24-4a4e-bc3e-4634d3f54a5a'
 
       - task: DotNetCoreCLI@2
-          displayName: 'dotnet build'
-          inputs:
-            command: 'build'
-            projects: './src'
-            arguments: '--no-restore --configuration $(BuildConfiguration) -p:Version=$(Build.BuildNumber)'
+        displayName: 'dotnet build'
+        inputs:
+          command: 'build'
+          projects: './src'
+          arguments: '--no-restore --configuration $(BuildConfiguration) -p:Version=$(Build.BuildNumber)'
 
       - task: NuGetCommand@2
-          displayName: 'nuget pack'
-          inputs:
-            command: 'pack'
-            packagesToPack: '**/*.nuspec'
-            configuration: '$(BuildConfiguration)'
-            versioningScheme: 'byEnvVar'
-            versionEnvVar: 'Build.BuildNumber'
-            buildProperties: 'version="$(Build.BuildNumber)"'
+        displayName: 'nuget pack'
+        inputs:
+          command: 'pack'
+          packagesToPack: '**/*.nuspec'
+          configuration: '$(buildConfiguration)'
+          versioningScheme: 'byEnvVar'
+          versionEnvVar: 'Build.BuildNumber'
+          buildProperties: 'version="$(Build.BuildNumber)"'
 
       - task: DotNetCoreCLI@2
-          displayName: 'dotnet test'
-          inputs:
-            command: 'test'
-            projects: './src'
-            arguments: '--no-restore --configuration $(BuildConfiguration) /p:CollectCoverage=true /p:CoverletOutputFormat="cobertura%2cjson" /p:CoverletOutput="$(Build.SourcesDirectory)/artifacts/unit-tests/" /p:MergeWith="$(Build.SourcesDirectory)/artifacts/unit-tests/coverage.json"'
+        displayName: 'dotnet test'
+        inputs:
+          command: 'test'
+          projects: './src'
+          arguments: '--no-restore --configuration $(BuildConfiguration) /p:CollectCoverage=true /p:CoverletOutputFormat="cobertura%2cjson" /p:CoverletOutput="$(Build.SourcesDirectory)/artifacts/unit-tests/" /p:MergeWith="$(Build.SourcesDirectory)/artifacts/unit-tests/coverage.json"'
 
       - task: DotNetCoreCLI@2
-          displayName: 'dotnet nuget push'
-          inputs:
-            command: 'push'
-            packagesToPush: '$(Build.ArtifactStagingDirectory)/*.nupkg'
-            nuGetFeedType: 'internal'
-            publishVstsFeed: '404449e0-6d24-4a4e-bc3e-4634d3f54a5a'
+        displayName: 'dotnet nuget push'
+        inputs:
+          command: 'push'
+          packagesToPush: '$(Build.ArtifactStagingDirectory)/*.nupkg'
+          nuGetFeedType: 'internal'
+          publishVstsFeed: '404449e0-6d24-4a4e-bc3e-4634d3f54a5a'
 
       - task: PublishBuildArtifacts@1
-          displayName: 'Publish build artifacts'
-          inputs:
-            PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-            ArtifactName: 'drop'
-            publishLocation: 'Container'
+        displayName: 'Publish build artifacts'
+        inputs:
+          PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+          ArtifactName: 'drop'
+          publishLocation: 'Container'
 
       - task: PublishCodeCoverageResults@1
-          displayName: 'Publish code coverage results'
-          inputs:
-            codeCoverageTool: Cobertura
-            summaryFileLocation: '$(Build.SourcesDirectory)/artifacts/unit-tests/coverage.cobertura.xml'
+        displayName: 'Publish code coverage results'
+        inputs:
+          codeCoverageTool: Cobertura
+          summaryFileLocation: '$(Build.SourcesDirectory)/artifacts/unit-tests/coverage.cobertura.xml'
 
       - task: PublishTestResults@2
-          displayName: 'Publish test results'
-          inputs:
-            testResultsFormat: 'VSTest'
-            testResultsFiles: '**/**.trx'
-            searchFolder: '$(Agent.TempDirectory)'
-            mergeTestResults: true
-            failTaskOnFailedTests: true
-            buildConfiguration: '$(BuildConfiguration)'
+        displayName: 'Publish test results'
+        inputs:
+          testResultsFormat: 'VSTest'
+          testResultsFiles: '**/**.trx'
+          searchFolder: '$(Agent.TempDirectory)'
+          mergeTestResults: true
+          failTaskOnFailedTests: true
+          buildConfiguration: '$(BuildConfiguration)'
     ```
