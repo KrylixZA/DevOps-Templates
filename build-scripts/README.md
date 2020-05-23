@@ -3,4 +3,5 @@ This directory contains templates for build scripts that makes setting up CI qui
 
 # Contents
 * [.NET Core](dotnet-core/README.md)
+* [MySQL Pac](mysql-pack/README.md)
 * [Webpack](webpack/README.md)

@@ -1,5 +1,5 @@
-# .NET Core
-This directory contains the necessary steps to setup automatic build & publishing of your build artifacts, including coverage reports, etc.
+# MySQL pack
+This directory contains the necessary steps to setup automatic packing of MySQL scripts into a deployable nuget package.
 
 # Steps
 1. Create a reposity and initialize it with a `azure-pipelines.yml` file at the root-level of your repository.
@@ -48,21 +48,6 @@ This directory contains the necessary steps to setup automatic build & publishin
               Write-Host "Package version: $nugetPkgVersion";
               Write-Host "##vso[build.updateBuildNumber]$nugetPkgVersion";
 
-      - task: DotNetCoreCLI@2
-          displayName: 'dotnet restore'
-          inputs:
-            command: 'restore'
-            projects: './src'
-            feedsToUse: 'select'
-            vstsFeed: '404449e0-6d24-4a4e-bc3e-4634d3f54a5a'
-
-      - task: DotNetCoreCLI@2
-          displayName: 'dotnet build'
-          inputs:
-            command: 'build'
-            projects: './src'
-            arguments: '--no-restore --configuration $(BuildConfiguration) -p:Version=$(Build.BuildNumber)'
-
       - task: NuGetCommand@2
           displayName: 'nuget pack'
           inputs:
@@ -74,40 +59,10 @@ This directory contains the necessary steps to setup automatic build & publishin
             buildProperties: 'version="$(Build.BuildNumber)"'
 
       - task: DotNetCoreCLI@2
-          displayName: 'dotnet test'
-          inputs:
-            command: 'test'
-            projects: './src'
-            arguments: '--no-restore --configuration $(BuildConfiguration) /p:CollectCoverage=true /p:CoverletOutputFormat="cobertura%2cjson" /p:CoverletOutput="$(Build.SourcesDirectory)/artifacts/unit-tests/" /p:MergeWith="$(Build.SourcesDirectory)/artifacts/unit-tests/coverage.json"'
-
-      - task: DotNetCoreCLI@2
           displayName: 'dotnet nuget push'
           inputs:
             command: 'push'
             packagesToPush: '$(Build.ArtifactStagingDirectory)/*.nupkg'
             nuGetFeedType: 'internal'
             publishVstsFeed: '404449e0-6d24-4a4e-bc3e-4634d3f54a5a'
-
-      - task: PublishBuildArtifacts@1
-          displayName: 'Publish build artifacts'
-          inputs:
-            PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-            ArtifactName: 'drop'
-            publishLocation: 'Container'
-
-      - task: PublishCodeCoverageResults@1
-          displayName: 'Publish code coverage results'
-          inputs:
-            codeCoverageTool: Cobertura
-            summaryFileLocation: '$(Build.SourcesDirectory)/artifacts/unit-tests/coverage.cobertura.xml'
-
-      - task: PublishTestResults@2
-          displayName: 'Publish test results'
-          inputs:
-            testResultsFormat: 'VSTest'
-            testResultsFiles: '**/**.trx'
-            searchFolder: '$(Agent.TempDirectory)'
-            mergeTestResults: true
-            failTaskOnFailedTests: true
-            buildConfiguration: '$(BuildConfiguration)'
     ```
