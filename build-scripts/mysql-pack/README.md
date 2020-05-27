@@ -14,12 +14,12 @@ This directory contains the necessary steps to setup automatic packing of MySQL 
     name: $(MajorVersion).$(MinorVersion).$(PatchVersion).$(Rev:r)
 
     trigger:
-    branches:
-      include:
-      - '*'
-    paths:
-      include:
-      - '*'
+      branches:
+        include:
+        - '*'
+      paths:
+        include:
+        - '*'
 
     pool:
       vmImage: 'windows-2019'
@@ -31,38 +31,56 @@ This directory contains the necessary steps to setup automatic packing of MySQL 
     - job: 'Build'
       steps:
       - checkout: self
-          fetchDepth: 1
-          clean: true
+        fetchDepth: 1
+        clean: true
 
       - task: PowerShell@2
-          displayName: 'Set build number'
-          inputs:
+        displayName: 'Set build number'
+        inputs:
           targetType: 'inline'
           script: |
-              $branchName = "$(Build.SourceBranchName)";
-              $buildVersion = "$(Build.BuildNumber)";
-              $nugetPkgVersion = $buildVersion;
-              If (-not([string]::IsNullOrWhiteSpace($branchName)) -and ($branchName -ne "master")) {
-                  $nugetPkgVersion = "$nugetPkgVersion-$branchName";
-              }
-              Write-Host "Package version: $nugetPkgVersion";
-              Write-Host "##vso[build.updateBuildNumber]$nugetPkgVersion";
+            $branchName = "$(Build.SourceBranchName)";
+            $buildVersion = "$(Build.BuildNumber)";
+            $nugetPkgVersion = $buildVersion;
+            If (-not([string]::IsNullOrWhiteSpace($branchName)) -and ($branchName -ne "master")) {
+                $nugetPkgVersion = "$nugetPkgVersion-$branchName";
+            }
+            Write-Host "Package version: $nugetPkgVersion";
+            Write-Host "##vso[build.updateBuildNumber]$nugetPkgVersion";
+
+      - task: SonarCloudPrepare@1
+        displayName: 'Prepare for analysis'
+        inputs:
+          SonarCloud: 'SonarCloud'
+          organization: 'headleysj'
+          scannerMode: 'CLI'
+          configMode: 'manual'
+          cliProjectKey: 'Your-Project-Key'
+          cliSources: 'src'
 
       - task: NuGetCommand@2
-          displayName: 'nuget pack'
-          inputs:
-            command: 'pack'
-            packagesToPack: '**/*.nuspec'
-            configuration: '$(BuildConfiguration)'
-            versioningScheme: 'byEnvVar'
-            versionEnvVar: 'Build.BuildNumber'
-            buildProperties: 'version="$(Build.BuildNumber)"'
+        displayName: 'nuget pack'
+        inputs:
+          command: 'pack'
+          packagesToPack: '**/*.nuspec'
+          configuration: '$(BuildConfiguration)'
+          versioningScheme: 'byEnvVar'
+          versionEnvVar: 'Build.BuildNumber'
+          buildProperties: 'version="$(Build.BuildNumber)"'
 
       - task: DotNetCoreCLI@2
-          displayName: 'dotnet nuget push'
-          inputs:
-            command: 'push'
-            packagesToPush: '$(Build.ArtifactStagingDirectory)/*.nupkg'
-            nuGetFeedType: 'internal'
-            publishVstsFeed: '404449e0-6d24-4a4e-bc3e-4634d3f54a5a'
+        displayName: 'dotnet nuget push'
+        inputs:
+          command: 'push'
+          packagesToPush: '$(Build.ArtifactStagingDirectory)/*.nupkg'
+          nuGetFeedType: 'internal'
+          publishVstsFeed: '404449e0-6d24-4a4e-bc3e-4634d3f54a5a'
+
+      - task: SonarCloudAnalyze@1
+        displayName: 'SonarCloud analysis'
+
+      - task: SonarCloudPublish@1
+        displayName: 'SonarCloud publish'
+        inputs:
+          pollingTimeoutSec: '300'
     ```

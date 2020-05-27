@@ -54,7 +54,7 @@ This directory contains the necessary steps to setup automatic build & publishin
           SonarCloud: 'SonarCloud'
           organization: 'headleysj'
           scannerMode: 'MSBuild'
-          projectKey: 'Shared-WebApi-Core'
+          projectKey: 'Your-Project-Key'
           extraProperties: 'sonar.cs.opencover.reportsPaths=$(Common.TestResultsDirectory)/coverage.opencover.xml'
 
       - task: DotNetCoreCLI@2
