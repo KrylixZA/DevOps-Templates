@@ -48,6 +48,15 @@ This directory contains the necessary steps to setup automatic build & publishin
             Write-Host "Package version: $nugetPkgVersion";
             Write-Host "##vso[build.updateBuildNumber]$nugetPkgVersion";
 
+      - task: SonarCloudPrepare@1
+        displayName: 'Prepare for analysis'
+        inputs:
+          SonarCloud: 'SonarCloud'
+          organization: 'headleysj'
+          scannerMode: 'MSBuild'
+          projectKey: 'Shared-WebApi-Core'
+          extraProperties: 'sonar.cs.opencover.reportsPaths=$(Common.TestResultsDirectory)/coverage.opencover.xml'
+
       - task: DotNetCoreCLI@2
         displayName: 'dotnet restore'
         inputs:
@@ -78,13 +87,13 @@ This directory contains the necessary steps to setup automatic build & publishin
         inputs:
           command: 'test'
           projects: './src'
-          arguments: '--no-restore --configuration $(BuildConfiguration) /p:CollectCoverage=true /p:CoverletOutputFormat="cobertura%2cjson" /p:CoverletOutput="$(Build.SourcesDirectory)/artifacts/unit-tests/" /p:MergeWith="$(Build.SourcesDirectory)/artifacts/unit-tests/coverage.json"'
+          arguments: '--no-restore --configuration $(BuildConfiguration) /p:CollectCoverage=true /p:CoverletOutputFormat="cobertura%2cjson%2copencover" /p:CoverletOutput="$(Common.TestResultsDirectory)/" /p:MergeWith="$(Common.TestResultsDirectory)/coverage.json"'
 
       - task: DotNetCoreCLI@2
         displayName: 'dotnet nuget push'
         inputs:
           command: 'push'
-          packagesToPush: '$(Build.ArtifactStagingDirectory)/*.nupkg'
+          packagesToPush: '$(Build.ArtifactStagingDirectory)\*.nupkg'
           nuGetFeedType: 'internal'
           publishVstsFeed: '404449e0-6d24-4a4e-bc3e-4634d3f54a5a'
 
@@ -99,7 +108,7 @@ This directory contains the necessary steps to setup automatic build & publishin
         displayName: 'Publish code coverage results'
         inputs:
           codeCoverageTool: Cobertura
-          summaryFileLocation: '$(Build.SourcesDirectory)/artifacts/unit-tests/coverage.cobertura.xml'
+          summaryFileLocation: '$(Common.TestResultsDirectory)/coverage.cobertura.xml'
 
       - task: PublishTestResults@2
         displayName: 'Publish test results'
@@ -110,4 +119,12 @@ This directory contains the necessary steps to setup automatic build & publishin
           mergeTestResults: true
           failTaskOnFailedTests: true
           buildConfiguration: '$(BuildConfiguration)'
+
+      - task: SonarCloudAnalyze@1
+        displayName: 'SonarCloud analysis'
+
+      - task: SonarCloudPublish@1
+        displayName: 'SonarCloud publish'
+        inputs:
+          pollingTimeoutSec: '300'
     ```
