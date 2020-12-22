@@ -1,4 +1,4 @@
-# Internal DevOps Templates
+# DevOps Templates
 This repository contains a set of template scripts and files to help get a repository building and publishing to a nuget feed.
 
 # Contributing
